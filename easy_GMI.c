@@ -138,11 +138,26 @@ void start(struct GMI *this) {
 
 void draw_screen(struct GMI *this) {
     void calculate_items_position(struct GMI *this, int boundaries_size);
+    bool is_in_array(const int *n, item_position_t *head);
 
     //Calculate boundaries
     int top_bottom_boundaries = round((this->rows * TOP_PERCENTAGE_BOUNDARY) / 100);
+    size_t n_items = this->current_screen->get_items_list_size(this->current_screen);
+    struct MenuItem items[n_items];
+    item_t *current = this->current_screen->items_list;
+
+    //fill items array
+    for(size_t i = 0; i < n_items; i++) {
+        items[i] = current->item;
+        current = current->next;
+    }
 
     calculate_items_position(this, top_bottom_boundaries);
+
+    //calculate vertical boundaries
+    short spaces = (short) ceil((double) (this->columns) / 2);
+
+    short current_item = 0;
 
     for(size_t row = 0; row < this->rows; row++) {
         for(size_t column = 0; column < this->columns; column++) {
@@ -156,8 +171,37 @@ void draw_screen(struct GMI *this) {
                     putch('#');
                 }
             } else {
-                //TODO: Function to print item
-                putch(' ');
+                if(is_in_array((const int *) &row, this->item_pos_list)) {
+                    if(current_item < n_items) {
+                        short complete_spaces = this->columns - 2;
+                        short space_before_item = (complete_spaces / 2) - items[current_item].name_lenght;
+
+                        char *row_string = (char *) calloc(complete_spaces + 1, sizeof(char));
+
+                        short index = 0;
+
+                        for(short i = 0; i < space_before_item; i++) {
+                            row_string[i] = ' ';
+                            index++;
+                        }
+                        strcat(row_string, items[current_item].name);
+                        index += items[current_item].name_lenght;
+                        for(short i = index; i < complete_spaces; i++)
+                            row_string[i] = ' ';
+
+                        //print line
+                        printf("%s", row_string);
+
+                        current_item++;
+                        //Ends line
+                        column = this->columns - 2;
+                        free(row_string);
+                    } else {
+                        putch(' ');
+                    }
+                } else {
+                    putch(' ');
+                }
             }
         }
     }
@@ -171,7 +215,6 @@ void print_screens(struct GMI *this) {
         current = current->next;
     }
 }
-
 
 //private
 int set_first_screen(struct GMI *this) {
@@ -221,9 +264,13 @@ size_t get_screen_list_size(struct GMI *this) {
 
 void calculate_items_position(struct GMI *this, int boundaries_size) {
     void add_item_position(struct GMI *this, int position);
+    void delete_item_position_list(item_position_t **head);
 
     int available_rows = this->rows - (boundaries_size * 2);
-    int printable_items = (int) available_rows / this->current_screen->get_items_list_size(this->current_screen);
+    int printable_items = (int) available_rows / ITEM_ROW_HEIGHT;
+
+    if(this->item_pos_list != NULL)
+        delete_item_position_list(&this->item_pos_list);
 
     short current_item_part = 0;
     short count_items_added = 0;
@@ -234,8 +281,8 @@ void calculate_items_position(struct GMI *this, int boundaries_size) {
         }
         if(current_item_part == 2) {
             current_item_part = 0;
-            if(count_items_added == printable_items)
-                break;
+            /*if(count_items_added == printable_items)
+                break;*/
         } else{
             current_item_part++;
         }
@@ -282,6 +329,19 @@ short push_position(item_position_t *head, int position) {
     return 1;
 }
 
+void delete_item_position_list(item_position_t **head) {
+    item_position_t  *current = *head;
+    item_position_t  *next;
+
+    while(current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+
+    *head = NULL;
+}
+
 short push_screen(screen_t *head, struct Screen screen) {
     screen_t *current = head;
     while(current->next != NULL) {
@@ -299,6 +359,17 @@ short push_screen(screen_t *head, struct Screen screen) {
     current->next->next = NULL;
 
     return 1;
+}
+
+bool is_in_array(const int *n, item_position_t *head) {
+    item_position_t *current = head;
+
+    while(current != NULL) {
+        if(*n == current->item_position)
+            return true;
+        current = current->next;
+    }
+    return false;
 }
 
 void signal_handler(int signal_value) {

@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     screen.set_is_first(&screen, true);
 
     gmi.add_screen(&gmi, screen);
-    gmi.print_screens(&gmi);
+
     gmi.start(&gmi);
 
     return 0;
